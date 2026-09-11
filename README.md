@@ -1,4 +1,4 @@
-# YouTube-Downloader
+# Magicloder
 
 This is a simple Python program that allows you to download video from YouTube videos.
 
