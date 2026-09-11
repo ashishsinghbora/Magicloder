@@ -1,0 +1,462 @@
+openapi: 3.0.3
+info:
+  title: Magicloder REST API
+  description: High-performance concurrent download and upload manager headless daemon API
+  version: 1.0.0
+servers:
+  - url: http://127.0.0.1:8321/api/v1
+    description: Local daemon loopback interface
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Daemon is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /version:
+    get:
+      summary: Version information
+      operationId: getVersion
+      responses:
+        '200':
+          description: Version metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
+
+  /config:
+    get:
+      summary: Get active configuration
+      operationId: getConfig
+      responses:
+        '200':
+          description: Active configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+
+  /downloads:
+    get:
+      summary: List all downloads
+      operationId: listDownloads
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DownloadStatus'
+      responses:
+        '200':
+          description: List of downloads
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Download'
+    post:
+      summary: Add a new download
+      operationId: createDownload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDownloadRequest'
+      responses:
+        '201':
+          description: Download created and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Download'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /downloads/{id}:
+    get:
+      summary: Get download by ID
+      operationId: getDownload
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Download details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Download'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+    delete:
+      summary: Remove a download
+      operationId: deleteDownload
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: delete_files
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '204':
+          description: Download removed successfully
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /downloads/{id}/pause:
+    post:
+      summary: Pause an active download
+      operationId: pauseDownload
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Download paused
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Download'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /downloads/{id}/resume:
+    post:
+      summary: Resume a paused download
+      operationId: resumeDownload
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Download resumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Download'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /downloads/{id}/cancel:
+    post:
+      summary: Cancel a download
+      operationId: cancelDownload
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Download cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Download'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /downloads/{id}/retry:
+    post:
+      summary: Retry a failed or cancelled download
+      operationId: retryDownload
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Download requeued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Download'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /uploads:
+    get:
+      summary: List all uploads
+      operationId: listUploads
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/UploadStatus'
+      responses:
+        '200':
+          description: List of uploads
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Upload'
+    post:
+      summary: Add a new Tus upload
+      operationId: createUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUploadRequest'
+      responses:
+        '201':
+          description: Upload created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /uploads/{id}:
+    get:
+      summary: Get upload by ID
+      operationId: getUpload
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Upload details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+    delete:
+      summary: Cancel and remove an upload
+      operationId: deleteUpload
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Upload deleted
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /events:
+    get:
+      summary: Real-time WebSocket event stream
+      operationId: getWebSocketEvents
+      responses:
+        '101':
+          description: Switching Protocols to WebSocket stream
+
+components:
+  schemas:
+    DownloadStatus:
+      type: string
+      enum: [queued, probing, downloading, paused, completed, failed, cancelled]
+
+    UploadStatus:
+      type: string
+      enum: [queued, uploading, paused, completed, failed, cancelled]
+
+    Download:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        destination:
+          type: string
+        temporary_path:
+          type: string
+        total_size:
+          type: integer
+        completed_bytes:
+          type: integer
+        status:
+          $ref: '#/components/schemas/DownloadStatus'
+        etag:
+          type: string
+        last_modified:
+          type: string
+        content_type:
+          type: string
+        supports_range:
+          type: boolean
+        max_connections:
+          type: integer
+        priority:
+          type: integer
+        error_msg:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateDownloadRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          example: "https://example.com/file.zip"
+        filename:
+          type: string
+          example: "file.zip"
+        destination_dir:
+          type: string
+          example: "/home/user/Downloads"
+        max_connections:
+          type: integer
+          default: 4
+        priority:
+          type: integer
+          default: 0
+        expected_hash:
+          type: string
+          example: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+    Upload:
+      type: object
+      properties:
+        id:
+          type: string
+        source_path:
+          type: string
+        tus_endpoint:
+          type: string
+        upload_url:
+          type: string
+        total_size:
+          type: integer
+        uploaded_bytes:
+          type: integer
+        status:
+          $ref: '#/components/schemas/UploadStatus'
+        file_fingerprint:
+          type: string
+        metadata:
+          type: string
+        error_msg:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateUploadRequest:
+      type: object
+      required:
+        - source_path
+        - tus_endpoint
+      properties:
+        source_path:
+          type: string
+          example: "/home/user/document.pdf"
+        tus_endpoint:
+          type: string
+          example: "https://upload.example.com/files"
+        metadata:
+          type: string
+          example: "filename document.pdf"
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "ok"
+        uptime_seconds:
+          type: integer
+          example: 3600
+        timestamp:
+          type: string
+          format: date-time
+
+    VersionResponse:
+      type: object
+      properties:
+        version:
+          type: string
+          example: "0.1.0"
+        git_commit:
+          type: string
+          example: "2da2a51"
+        build_date:
+          type: string
+          example: "2026-09-12"
+
+    ConfigResponse:
+      type: object
+      properties:
+        data_dir:
+          type: string
+        download_dir:
+          type: string
+        bind_addr:
+          type: string
+        remote_enabled:
+          type: boolean
+        max_concurrent_downloads:
+          type: integer
+        default_workers_per_download:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "destination file already exists"
+        code:
+          type: integer
+          example: 409
+
+  responses:
+    ErrorResponse:
+      description: API error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

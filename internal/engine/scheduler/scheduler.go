@@ -183,7 +183,14 @@ func (s *Scheduler) Pause(id string) error {
 	// If in active jobs
 	if j, ok := s.activeJobs[id]; ok {
 		j.paused = true
-		j.cancel() // Signals executing goroutine to halt and finalize pause
+		doneCh := j.done
+		j.cancel()
+		s.mu.Unlock()
+		select {
+		case <-doneCh:
+		case <-time.After(2 * time.Second):
+		}
+		s.mu.Lock()
 		return nil
 	}
 
@@ -242,9 +249,11 @@ func (s *Scheduler) Cancel(id string, deleteFiles bool) error {
 	s.mu.Lock()
 
 	var target *model.Download
+	var doneCh chan struct{}
 	if j, ok := s.activeJobs[id]; ok {
 		target = j.download
 		j.cancelled = true
+		doneCh = j.done
 		j.cancel()
 	} else {
 		for i, q := range s.queue {
@@ -257,6 +266,15 @@ func (s *Scheduler) Cancel(id string, deleteFiles bool) error {
 				break
 			}
 		}
+	}
+
+	if doneCh != nil {
+		s.mu.Unlock()
+		select {
+		case <-doneCh:
+		case <-time.After(2 * time.Second):
+		}
+		s.mu.Lock()
 	}
 
 	if target == nil {
@@ -373,10 +391,23 @@ func (s *Scheduler) scheduleLoop() {
 func (s *Scheduler) executeJob(ctx context.Context, j *activeJob) {
 	dl := j.download
 	defer func() {
-		close(j.done)
 		s.mu.Lock()
+		isPaused := j.paused
+		isCancelled := j.cancelled
 		delete(s.activeJobs, dl.ID)
 		s.mu.Unlock()
+
+		if isPaused {
+			_ = dl.TransitionTo(model.StatusPaused)
+			_ = s.store.UpdateDownloadStatus(context.Background(), dl.ID, model.StatusPaused, "")
+			s.emit("job_paused", dl)
+		} else if isCancelled {
+			_ = dl.TransitionTo(model.StatusCancelled)
+			_ = s.store.UpdateDownloadStatus(context.Background(), dl.ID, model.StatusCancelled, "Cancelled by user")
+			s.emit("job_cancelled", dl)
+		}
+
+		close(j.done)
 		s.wake()
 	}()
 
@@ -477,20 +508,6 @@ func (s *Scheduler) executeJob(ctx context.Context, j *activeJob) {
 	}
 
 	if ctx.Err() != nil {
-		s.mu.Lock()
-		isPaused := j.paused
-		isCancelled := j.cancelled
-		s.mu.Unlock()
-
-		if isPaused {
-			_ = dl.TransitionTo(model.StatusPaused)
-			_ = s.store.UpdateDownloadStatus(context.Background(), dl.ID, model.StatusPaused, "")
-			s.emit("job_paused", dl)
-		} else if isCancelled {
-			_ = dl.TransitionTo(model.StatusCancelled)
-			_ = s.store.UpdateDownloadStatus(context.Background(), dl.ID, model.StatusCancelled, "Cancelled by user")
-			s.emit("job_cancelled", dl)
-		}
 		return
 	}
 

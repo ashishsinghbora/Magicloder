@@ -128,6 +128,18 @@ func (d *Download) GetStatus() DownloadStatus {
 	return d.Status
 }
 
+// Clone returns an isolated snapshot of the download.
+func (d *Download) Clone() *Download {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	cp := *d
+	if d.Chunks != nil {
+		cp.Chunks = make([]Chunk, len(d.Chunks))
+		copy(cp.Chunks, d.Chunks)
+	}
+	return &cp
+}
+
 // CanTransition validates if the chunk can transition to the target state.
 func (c *Chunk) CanTransition(target ChunkStatus) bool {
 	switch c.Status {
