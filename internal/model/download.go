@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -36,6 +37,7 @@ var (
 
 // Download represents a persistent download entity.
 type Download struct {
+	mu             sync.RWMutex
 	ID             string         `json:"id"`
 	URL            string         `json:"url"`
 	Destination    string         `json:"destination"`
@@ -81,6 +83,12 @@ func (c *Chunk) TotalChunkBytes() int64 {
 
 // CanTransition validates if the download can transition to the target state.
 func (d *Download) CanTransition(target DownloadStatus) bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.canTransitionLocked(target)
+}
+
+func (d *Download) canTransitionLocked(target DownloadStatus) bool {
 	switch d.Status {
 	case StatusQueued:
 		return target == StatusProbing || target == StatusDownloading || target == StatusPaused || target == StatusCancelled
@@ -103,12 +111,21 @@ func (d *Download) CanTransition(target DownloadStatus) bool {
 
 // TransitionTo updates the download state if valid, or returns ErrInvalidTransition.
 func (d *Download) TransitionTo(target DownloadStatus) error {
-	if !d.CanTransition(target) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if !d.canTransitionLocked(target) {
 		return fmt.Errorf("%w: cannot transition download %s from %s to %s", ErrInvalidTransition, d.ID, d.Status, target)
 	}
 	d.Status = target
 	d.UpdatedAt = time.Now().UTC()
 	return nil
+}
+
+// GetStatus returns the current status safely under lock.
+func (d *Download) GetStatus() DownloadStatus {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.Status
 }
 
 // CanTransition validates if the chunk can transition to the target state.
