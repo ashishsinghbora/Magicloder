@@ -1,0 +1,33 @@
+# Binaries
+/magicloder
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test and coverage artifacts
+*.out
+*.test
+coverage.txt
+
+# Databases and runtime data
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+data/
+downloads/
+*.part
+
+# Frontend
+frontend/desktop/node_modules/
+frontend/desktop/dist/
+frontend/desktop/src-tauri/target/
+
+# OS and Editor files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
