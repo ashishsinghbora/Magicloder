@@ -132,12 +132,31 @@ func (d *Download) GetStatus() DownloadStatus {
 func (d *Download) Clone() *Download {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	cp := *d
+	cp := &Download{
+		ID:             d.ID,
+		URL:            d.URL,
+		Destination:    d.Destination,
+		TemporaryPath:  d.TemporaryPath,
+		TotalSize:      d.TotalSize,
+		CompletedBytes: d.CompletedBytes,
+		Status:         d.Status,
+		ETag:           d.ETag,
+		LastModified:   d.LastModified,
+		ContentType:    d.ContentType,
+		SupportsRange:  d.SupportsRange,
+		MaxConnections: d.MaxConnections,
+		Priority:       d.Priority,
+		ErrorMsg:       d.ErrorMsg,
+		ExpectedHash:   d.ExpectedHash,
+		ActualHash:     d.ActualHash,
+		CreatedAt:      d.CreatedAt,
+		UpdatedAt:      d.UpdatedAt,
+	}
 	if d.Chunks != nil {
 		cp.Chunks = make([]Chunk, len(d.Chunks))
 		copy(cp.Chunks, d.Chunks)
 	}
-	return &cp
+	return cp
 }
 
 // CanTransition validates if the chunk can transition to the target state.

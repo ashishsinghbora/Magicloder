@@ -97,7 +97,7 @@ func TestDownloadAPILifecycle(t *testing.T) {
 	resp.Body.Close()
 
 	if created.ID == "" || created.Destination == "" {
-		t.Fatalf("invalid created download: %+v", created)
+		t.Fatalf("invalid created download: %+v", &created)
 	}
 	if filepath.Base(created.Destination) != "custom_file.zip" {
 		t.Fatalf("expected custom_file.zip, got %s", created.Destination)
