@@ -2,11 +2,14 @@ module github.com/ashishsinghbora/magicloder
 
 go 1.27.0
 
-require modernc.org/sqlite v1.58.0
+require (
+	github.com/google/uuid v1.6.0
+	github.com/gorilla/websocket v1.5.3
+	modernc.org/sqlite v1.58.0
+)
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
